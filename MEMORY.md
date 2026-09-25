@@ -62,8 +62,10 @@ Base address: `base = (DWORD_PTR)GetModuleHandleA(NULL)`.
   - The loading flare glow routine (`0x004078D6`) hardcodes a 45.59° FOV projection calculation (`2 * atan(14.5 / 34.5)`).
   - Globally forcing 60° FOV shifts the 3D ring down while the flare remains stationary, misaligning them.
 - **Hook Mechanics**:
-  - Inspects viewport type flag at `[esi + 0x2A]`:
-    - `0` (Fullscreen / Menus / Loading Screen): Sets global FOV `[0x00B4D200]` to `0x3F490FDB` (45° = `0.785398 rad`), keeping flare and ring perfectly aligned.
+  - Checks engine loading flag `0x0080E466` (`base + 0x40E466`, `1` = loading screen active, `0` = inactive).
+    - If `[0x0080E466] != 0`: Forces 45° (`0x3F490FDB`). This prevents saved world cameras deserializing midway through slow savegame loading from prematurely switching to 60° while the loading bar is still active.
+  - If `[0x0080E466] == 0`: Inspects viewport type flag at `[esi + 0x2A]`:
+    - `0` (Fullscreen / Menus): Sets global FOV `[0x00B4D200]` to `0x3F490FDB` (45° = `0.785398 rad`).
     - `1` (Gameplay matches): Sets global FOV `[0x00B4D200]` to `g_GameplayFovHex` (configurable via `FOV=` in `d3d9.ini`, default 60° = `0x3F860A92`).
   - Executes original 6 bytes (`push ebp; mov ebp, esp; sub esp, 0x24`) and jumps back to `base + 0x157218`.
 

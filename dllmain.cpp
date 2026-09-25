@@ -104,24 +104,45 @@ static void ApplyHealthBarPatch()
 static DWORD g_ContinueCameraProjection = 0;
 static DWORD g_GameplayFovHex = 0x3F860A92; // 60 degrees (1.047198 rad)
 static const DWORD g_MenuFovHex = 0x3F490FDB; // 45 degrees (0.785398 rad - vanilla)
+static DWORD g_IsLoadingFlagAddr = 0x0080E466; // base + 0x40E466 (1 = in loading screen, 0 = inactive)
+static DWORD g_GlobalFovAddr = 0x00B4D200; // base + 0x74D200
 
 static void __declspec(naked) Hook_CameraProjection()
 {
     __asm {
         push eax
+
+        // 1. Detect if the game is actively in a loading screen:
+        // 0x0080E466 (base + 0x40E466) is the engine's master g_IsLoadingScreen flag.
+        // During slow loading (e.g. save games), the engine initializes saved world cameras midway
+        // through the progress bar. Checking this flag guarantees that FOV remains 45 degrees
+        // throughout the entire loading sequence until the loading screen has completely exited.
+        mov eax, g_IsLoadingFlagAddr
+        cmp byte ptr [eax], 0
+        jne force_menu_fov
+
+        // 2. Viewport mode check:
         // esi = Camera / Viewport object pointer
+        // [esi + 0x2A] == 0 for Menus/Fullscreen, != 0 for Battlefield Gameplay
         cmp byte ptr [esi + 0x2A], 0
         jne is_gameplay
 
+    force_menu_fov:
         // Fullscreen / Menu / Loading Screen: 45 degrees (perfect flare alignment!)
-        mov eax, g_MenuFovHex
-        mov dword ptr ds:[0x00B4D200], eax
+        mov eax, g_GlobalFovAddr
+        push edx
+        mov edx, g_MenuFovHex
+        mov dword ptr [eax], edx
+        pop edx
         jmp hook_done
 
     is_gameplay:
         // In-game 3D world: 60 degrees (or configured in d3d9.ini)
-        mov eax, g_GameplayFovHex
-        mov dword ptr ds:[0x00B4D200], eax
+        mov eax, g_GlobalFovAddr
+        push edx
+        mov edx, g_GameplayFovHex
+        mov dword ptr [eax], edx
+        pop edx
 
     hook_done:
         pop eax
@@ -258,6 +279,8 @@ static void ApplyFullWidescreenFovMod()
     WriteMemorySafe((void*)(base + 0x30CF10), aspectRatio, sizeof(aspectRatio));
 
     // 4. Dynamic FOV Hook at base + 0x157212 (0x00557212)
+    g_IsLoadingFlagAddr = (DWORD)(base + 0x40E466);
+    g_GlobalFovAddr = (DWORD)(base + 0x74D200);
     void* hookTarget = (void*)(base + 0x157212);
     g_ContinueCameraProjection = (DWORD)(base + 0x157218);
 
