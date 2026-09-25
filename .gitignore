@@ -67,3 +67,26 @@ vcpkg_installed/
 # test output & cache
 Testing/
 .cache/
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Build Outputs & Intermediates
+Release/
+Debug/
+x64/
+x86/
+[Bb]in/
+[Oo]bj/
+wotr_qol/
+*.tlog
+*.lastbuildstate
+*.unsuccessfulbuild
+*.iobj
+*.ipdb
+*.recipe
+*.log
